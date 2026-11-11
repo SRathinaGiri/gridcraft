@@ -31,6 +31,28 @@ pub(super) fn options(app: &mut SheetApp, ui: &mut Ui) {
     if ui.checkbox(&mut autosave, lang.tr("Save .xlsx workbooks automatically after every change")).changed() {
         app.toggle_autosave();
     }
+    ui.add_space(8.0);
+    ui.label("Default personal templates location:");
+    ui.horizontal_wrapped(|ui| {
+        let id = ui.make_persistent_id("personal_templates_location");
+        let mut location = ui.data_mut(|data| data.get_temp::<String>(id)).unwrap_or_else(|| app.ui.personal_templates_location.clone());
+        let width = (ui.available_width() - 90.0).clamp(160.0, 520.0);
+        let response = ui.add(
+            egui::TextEdit::singleline(&mut location).id(id.with("edit")).desired_width(width).hint_text("Folder containing .xltx and .xltm files"),
+        );
+        if ui.button("Browse…").clicked()
+            && let Some(chosen) = app.services.pick_folder.as_ref().and_then(|pick| pick())
+        {
+            location = chosen;
+            app.run_or_alert("options.personalTemplatesLocation", json!({"location": location}));
+        }
+        ui.data_mut(|data| data.insert_temp(id, location.clone()));
+        if response.lost_focus() || (response.changed() && !response.has_focus()) {
+            app.run_or_alert("options.personalTemplatesLocation", json!({"location": location}));
+            ui.data_mut(|data| data.remove::<String>(id));
+        }
+    });
+    dim(ui, "Templates create a new workbook; the original template is never overwritten.");
     let Some((calc, view)) = app.session.active().map(|d| (d.wb.calc.clone(), d.wb.view)) else { return };
     ui.add_space(18.0);
     // Excel's Advanced › Display options for this workbook: saved with the workbook (#3101).

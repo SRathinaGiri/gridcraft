@@ -1,5 +1,5 @@
 use super::{
-    INTERFACE_SCALE_MAX, INTERFACE_SCALE_MIN, Json, NoticeKind, SheetApp, UiRequest, backstage, clamp_interface_scale, clean_error, dialogs,
+    INTERFACE_SCALE_MAX, INTERFACE_SCALE_MIN, Json, Notice, NoticeKind, SheetApp, UiRequest, backstage, clamp_interface_scale, clean_error, dialogs,
     formula_locale, i18n, json, now_ms, printing,
 };
 
@@ -95,6 +95,21 @@ impl SheetApp {
             && let Ok(r) = &r
         {
             self.deliver_pdf(r);
+        }
+        // The scan stopped at its cell allowance: say that some cells were not checked.
+        if id == "data.circleInvalid"
+            && let Ok(r) = &r
+            && r.get("truncated").and_then(Json::as_bool) == Some(true)
+        {
+            let scan = "The scan stopped after 100,000 cell visits; some validated cells were not checked for invalid data.";
+            // An open-time warning that is still shown keeps its text and action; the scan note joins it.
+            match self.notice.as_mut() {
+                Some(n) => {
+                    n.text = format!("{} {scan}", n.text);
+                    n.kind = NoticeKind::Warning;
+                }
+                None => self.notice = Some(Notice { text: scan.into(), kind: NoticeKind::Warning, action: None }),
+            }
         }
         r
     }
@@ -206,6 +221,13 @@ impl SheetApp {
                 self.ui.highlight_active_row = p.get("on").and_then(Json::as_bool).unwrap_or(!self.ui.highlight_active_row);
                 Ok(json!({"on": self.ui.highlight_active_row}))
             }
+            "options.personalTemplatesLocation" => {
+                let Some(location) = p.get("location").and_then(Json::as_str) else {
+                    return Some(Err("personal templates location must be text".into()));
+                };
+                self.ui.personal_templates_location = location.trim().to_string();
+                Ok(json!({"location": self.ui.personal_templates_location}))
+            }
             "view.interfaceScale" => {
                 // `{"percent": 125}` or `{"percent": "auto"}`; out-of-range values are clamped.
                 let percent = match p.get("percent") {
@@ -302,6 +324,7 @@ impl SheetApp {
         // The requests belong to the window the command left active.
         self.follow_active_window();
         self.prune_selected_object();
+        self.prune_views();
         for req in self.session.take_ui_requests() {
             match req {
                 UiRequest::Dialog(name, params) => self.open_dialog(&name, params),

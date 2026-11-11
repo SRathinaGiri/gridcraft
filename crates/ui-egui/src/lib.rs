@@ -53,6 +53,7 @@ pub mod ribbon;
 pub mod selection_glide;
 pub mod tabs;
 pub mod text_box;
+mod text_direction;
 pub mod theme;
 #[cfg(not(target_arch = "wasm32"))]
 mod updates_ui;
@@ -105,6 +106,8 @@ pub struct UiState {
     /// AutoSave (the title-bar switch): save saved-to-file .xlsx workbooks shortly after every
     /// change. A preference like the rest of this struct — it stays on across restarts (#1901).
     pub autosave: bool,
+    /// Folder File › New scans for personal `.xltx` and `.xltm` templates.
+    pub personal_templates_location: String,
     pub recent: Vec<String>,
     /// One-shot keytip request for a ribbon control: set when a keytip action resolves to
     /// [`keytips::Action::Control`], consumed (and cleared) by the control's render site.
@@ -155,6 +158,7 @@ impl Default for UiState {
             autocomplete: true,
             highlight_active_row: false,
             autosave: false,
+            personal_templates_location: String::new(),
             recent: vec![],
             keytip_invoke: None,
             keytip_invoke_next: None,
@@ -222,8 +226,9 @@ pub struct SheetApp {
     pub ui: UiState,
     /// The window chrome to draw (see [`Chrome`]).
     pub chrome: Chrome,
-    /// Scroll position per (window id, sheet index).
-    pub views: HashMap<(u64, usize), SheetView>,
+    /// Scroll position per (window id, sheet uid): each sheet keeps its own when sheets are
+    /// inserted, deleted or moved.
+    pub views: HashMap<(u64, u64), SheetView>,
     pub editor: Option<editor::EditState>,
     pub text_box_editor: Option<text_box::EditState>,
     pub dialog: Option<dialogs::Dialog>,
