@@ -23,6 +23,11 @@ jobs:
 
   packages:
     needs: gate
+    # The shared release workflow declares these permissions for real releases. In this caller,
+    # `dry-run: true` prevents publishing and signing, but GitHub still validates the declarations.
+    permissions:
+      contents: write
+      packages: write
     uses: storytold/craft-common-actions/.github/workflows/release.yml@main
     with:
       dry-run: true
