@@ -1,0 +1,36 @@
+name: Test and portable build
+
+# Manual validation for the fork: run the shared quality gate, then make unsigned test packages.
+# The Windows artifact contains the portable ZIP used for hands-on testing; nothing is published.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-portable-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    uses: storytold/craft-common-actions/.github/workflows/gate.yml@main
+    with:
+      craft-fonts-ref: b076417b5880bd4154bd22f00695b1d28c6bea83
+      packages: >-
+        pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev
+        libgtk-3-dev libfontconfig1-dev libfreetype-dev mesa-vulkan-drivers
+
+  packages:
+    needs: gate
+    uses: storytold/craft-common-actions/.github/workflows/release.yml@main
+    with:
+      dry-run: true
+      app-name: gridcraft
+      app-title: GridCraft
+      craft-fonts-ref: b076417b5880bd4154bd22f00695b1d28c6bea83
+      has-web: false
+      has-riscv64: false
+      has-freebsd: false
+      has-arch: false
+      has-server: false
